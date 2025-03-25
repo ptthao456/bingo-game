@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Search Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f8f8;
+        }
+
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .game-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .word-list {
+            border: 2px solid black;
+            padding: 10px;
+            background: #fff;
+            width: 200px;
+            text-align: left;
+        }
+
+        .word-list h3 {
+            text-align: center;
+        }
+
+        .word-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .word-list li {
+            font-size: 18px;
+            margin: 5px 0;
+        }
+
+        .found {
+            color: green;
+            font-weight: bold;
+        }
+
+        .game-board {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        input, button {
+            font-size: 18px;
+            padding: 10px;
+            margin: 5px;
+            border: 2px solid black;
+            border-radius: 5px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(10, 40px);
+            grid-gap: 5px;
+            margin-top: 10px;
+        }
+
+        .grid button {
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            background-color: white;
+            border: 1px solid black;
+            transition: 0.2s;
+        }
+
+        .grid button.selected {
+            background-color: lightblue;
+        }
+
+        .grid button.correct {
+            background-color: lightgreen;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="game-wrapper">
+        <div class="word-list">
+            <h3><b>Find These Words</b></h3>
+            <ul id="wordList"></ul>
+        </div>
+
+        <div class="game-board">
+            <h2 id="gameTitle">Word Search Game</h2>
+            <input type="text" id="wordInput" placeholder="Enter words (comma-separated)">
+            <button id="generateGrid">Generate Grid</button>
+            <div class="grid" id="grid"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById("generateGrid").addEventListener("click", generateGame);
+    document.getElementById("wordInput").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") generateGame();
+    });
+
+    let words = [];
+    let selectedCells = [];
+    let foundWords = new Set();
+
+    function generateGame() {
+        let input = document.getElementById("wordInput").value.trim().toUpperCase();
+        if (!input) return;
+
+        words = input.split(",").map(word => word.trim()).filter(word => word !== "");
+        document.getElementById("wordList").innerHTML = words.map((w, i) => `<li id="word-${w}">${i + 1}. ${w}</li>`).join("");
+
+        document.getElementById("wordInput").style.display = "none";
+        document.getElementById("generateGrid").style.display = "none";
+
+        createGrid();
+    }
+
+    function createGrid() {
+        let gridSize = 10;
+        let grid = Array.from({ length: gridSize }, () => Array(gridSize).fill(""));
+        let gridContainer = document.getElementById("grid");
+        gridContainer.innerHTML = "";
+        gridContainer.style.gridTemplateColumns = `repeat(${gridSize}, 40px)`;
+
+        words.forEach(word => placeWord(word, grid, gridSize));
+        fillEmptySpaces(grid, gridSize);
+
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize; c++) {
+                let cell = document.createElement("button");
+                cell.textContent = grid[r][c];
+                cell.dataset.row = r;
+                cell.dataset.col = c;
+                cell.addEventListener("click", () => selectCell(cell));
+                gridContainer.appendChild(cell);
+            }
+        }
+    }
+
+    function placeWord(word, grid, size) {
+        let placed = false;
+        while (!placed) {
+            let row = Math.floor(Math.random() * size);
+            let col = Math.floor(Math.random() * size);
+            let dir = Math.floor(Math.random() * 4);
+            let deltaRow = [0, 1, 0, -1][dir];
+            let deltaCol = [1, 0, -1, 0][dir];
+
+            let fits = true, positions = [];
+            for (let i = 0; i < word.length; i++) {
+                let r = row + i * deltaRow, c = col + i * deltaCol;
+                if (r < 0 || r >= size || c < 0 || c >= size || (grid[r][c] !== "" && grid[r][c] !== word[i])) {
+                    fits = false;
+                    break;
+                }
+                positions.push([r, c]);
+            }
+
+            if (fits) {
+                positions.forEach(([r, c], i) => grid[r][c] = word[i]);
+                placed = true;
+            }
+        }
+    }
+
+    function fillEmptySpaces(grid, size) {
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                if (grid[r][c] === "") {
+                    grid[r][c] = letters[Math.floor(Math.random() * letters.length)];
+                }
+            }
+        }
+    }
+
+    function selectCell(cell) {
+        if (cell.classList.contains("correct")) return;
+
+        cell.classList.toggle("selected");
+        let letter = cell.textContent;
+        let pos = `${cell.dataset.row},${cell.dataset.col}`;
+
+        if (selectedCells.some(s => s.pos === pos)) {
+            selectedCells = selectedCells.filter(s => s.pos !== pos);
+        } else {
+            selectedCells.push({ pos, letter });
+        }
+
+        checkWord();
+    }
+
+    function checkWord() {
+        let selectedWord = selectedCells.map(s => s.letter).sort().join("");
+        let found = words.find(word => word.split("").sort().join("") === selectedWord);
+
+        if (found) {
+            selectedCells.forEach(s => document.querySelector(`[data-row="${s.pos.split(",")[0]}"][data-col="${s.pos.split(",")[1]}"]`).classList.add("correct"));
+            document.getElementById(`word-${found}`).classList.add("found");
+            foundWords.add(found);
+            selectedCells = [];
+        }
+    }
+</script>
+
+</body>
+</html>
